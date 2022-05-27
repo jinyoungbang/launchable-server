@@ -99,7 +99,6 @@ def delete_specific_post(id):
 
 @posts.route("/api/posts/like/<id>", methods=["POST"])
 def like_post(id):
-    # Check if user is authenticated
 
     # Find post and check if post exists
     doc_ref = db.collection(u'posts').document(id)
@@ -114,6 +113,14 @@ def like_post(id):
     post_doc_data = post_doc.to_dict()
     data = request.get_json()
     user_id = data["userId"]
+
+    if not user_id or user_id == "":
+        res_obj = {
+            "success": False,
+            "msg": "Error, please try again."
+        }
+        return make_response(jsonify(res_obj), 404)
+
     if user_id in post_doc_data["likes"]:
         res_obj = {
             "success": False,
@@ -149,13 +156,21 @@ def unlike_post(id):
     post_doc_data = post_doc.to_dict()
     data = request.get_json()
     user_id = data["userId"]
+
+    if not user_id or user_id == "":
+        res_obj = {
+            "success": False,
+            "msg": "Error, please try again."
+        }
+        return make_response(jsonify(res_obj), 404)
+
     if user_id not in post_doc_data["likes"]:
         res_obj = {
             "success": False,
             "msg": "Post not liked, cannot unlike."
         }
         return make_response(jsonify(res_obj), 404)
-    
+
     if len(post_doc_data["likes"]) == 0:
         res_obj = {
             "success": False,
@@ -166,7 +181,6 @@ def unlike_post(id):
     likes_count = len(post_doc_data["likes"]) - 1
     likes_list = post_doc_data["likes"][:]
     likes_list.remove(user_id)
-
 
     doc_ref.update({
         u"likes": likes_list,
