@@ -16,19 +16,18 @@ class Post(object):
 
 
 class Comment(object):
-    def __init__(self, id, text, body, user, url_slug, created_at, updated_at):
+    def __init__(self, id, body, user_id, username, level, created_at, updated_at):
         self.id = id
-        self.title = title
         self.body = body
-        self.user = user
-        self.url_slug = url_slug
-        self.likes = 0
-        self.views = 0
+        self.user_id = user_id
+        self.username = username
+        self.level = level
         self.created_at = created_at
         self.updated_at = updated_at
+        self.likes = 0
         self.comments = []
         self.comments_count = 0
-        self.liked = False
+        self.deleted = False
 
 
 class Like(object):

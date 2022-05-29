@@ -1,7 +1,9 @@
 from flask import Blueprint, jsonify, request, make_response
 from firebase_admin import firestore
 from firebase_admin.firestore import SERVER_TIMESTAMP
-from models.post import Post, Like
+from models.post import Post, Comment
+from uuid import uuid4
+import datetime
 
 posts = Blueprint("posts", __name__)  # initialize blueprint
 db = firestore.client()
@@ -193,3 +195,114 @@ def unlike_post(id):
         "likesCount": likes_count
     }
     return make_response(jsonify(res_obj), 201)
+
+
+@posts.route("/api/posts/<id>/comments", methods=["POST"])
+def create_comment(id):
+    try:
+        doc_ref = db.collection(u'posts').document(id)
+        post_doc = doc_ref.get()
+        if not post_doc.exists:
+            res_obj = {
+                "success": False,
+                "msg": "Post not found."
+            }
+            return make_response(jsonify(res_obj), 404)
+
+        post_doc_data = post_doc.to_dict()
+        data = request.get_json()
+
+        comment = Comment(
+            str(uuid4()), data["body"], data["userId"], data["username"], 1, datetime.datetime.now(),  datetime.datetime.now())
+
+        doc_ref.update({
+            u"comments": firestore.ArrayUnion([vars(comment)]),
+            u"comments_count": post_doc_data["comments_count"] + 1
+        })
+
+        res_obj = {
+            "success": True
+        }
+        return make_response(jsonify(res_obj), 201)
+
+    except Exception as e:
+        res_obj = {
+            "success": False,
+            "msg": e
+        }
+        return make_response(jsonify(res_obj), 400)
+
+
+@posts.route("/api/posts/<post_id>/comments/<comment_id>", methods=["PATCH"])
+def update_comment(post_id, comment_id):
+    try:
+        doc_ref = db.collection(u'posts').document(post_id)
+        post_doc = doc_ref.get()
+        if not post_doc.exists:
+            res_obj = {
+                "success": False,
+                "msg": "Post not found."
+            }
+            return make_response(jsonify(res_obj), 404)
+
+        data = request.get_json()
+
+        post_doc_data = post_doc.to_dict()
+        comments = post_doc_data["comments"]
+        for i in range(len(comments)):
+            if comments[i]["id"] == comment_id:
+                comments[i]["body"] = data["body"]
+                comments[i]["updated_at"] = datetime.datetime.now()
+                break
+        
+
+        doc_ref.update({
+            u"comments": comments,
+        })
+
+        res_obj = {
+            "success": True
+        }
+        return make_response(jsonify(res_obj), 200)
+
+    except Exception as e:
+        res_obj = {
+            "success": False,
+            "msg": e
+        }
+        return make_response(jsonify(res_obj), 400)
+
+
+
+@posts.route("/api/posts/<post_id>/comments/<comment_id>", methods=["DELETE"])
+def delete_comment(post_id, comment_id):
+    try:
+        doc_ref = db.collection(u'posts').document(post_id)
+        post_doc = doc_ref.get()
+        if not post_doc.exists:
+            res_obj = {
+                "success": False,
+                "msg": "Post not found."
+            }
+            return make_response(jsonify(res_obj), 404)
+
+        post_doc_data = post_doc.to_dict()
+        comments = [comment for comment in post_doc_data["comments"]
+                    if not (comment['id'] == comment_id)]
+
+        doc_ref.update({
+            u"comments": comments,
+            u"comments_count": len(comments)
+        })
+
+        res_obj = {
+            "success": True
+        }
+        return make_response(jsonify(res_obj), 200)
+
+    except Exception as e:
+        res_obj = {
+            "success": False,
+            "msg": e
+        }
+        return make_response(jsonify(res_obj), 400)

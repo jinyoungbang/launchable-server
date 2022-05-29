@@ -81,4 +81,3 @@ def create_user():
             "msg": e
         }
         return make_response(jsonify(res_obj), 400)
-        return return_exception(e)
