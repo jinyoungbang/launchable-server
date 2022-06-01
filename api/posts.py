@@ -80,6 +80,30 @@ def get_specific_post(id):
         }
         return make_response(jsonify(res_obj), 400)
 
+@posts.route("/api/posts/trending", methods=["GET"])
+def get_trending_posts():
+    pass
+
+@posts.route("/api/posts/recent", methods=["GET"])
+def get_recent_posts():
+    try:
+        docs = db.collection(u'posts').order_by(u"created_at", direction=firestore.Query.DESCENDING)
+        docs = docs.stream()
+        docs_to_send = [doc.to_dict() for doc in docs]
+
+        res_obj = {
+            "success": True,
+            "data": docs_to_send
+        }
+        return make_response(jsonify(res_obj), 200)
+
+    except Exception as e:
+        res_obj = {
+            "success": False,
+            "msg": e
+        }
+        return make_response(jsonify(res_obj), 400)
+    # db.collection("calculations").orderBy("timestamp", "desc").limit(1).get()
 
 @posts.route("/api/posts/<id>", methods=["DELETE"])
 def delete_specific_post(id):

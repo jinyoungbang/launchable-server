@@ -2,10 +2,27 @@ from flask import Flask
 from flask_cors import CORS
 from loaders.blueprints import register_blueprints
 from loaders.firebase_admin_init import initialize_firebase_admin
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
+
+env = os.environ.get('FLASK_ENV'),
 app = Flask(__name__)
-CORS(app, resources={r'*': {'origins': '*'}})
-# CORS(app, resources={r'*': {'origins': ['https://webisfree.com', 'http://localhost:3000']}})
+
+if env == "production":
+    CORS(app, resources={r'*': {'origins': [
+        "http://launchable.kr/",
+        "https://launchable.kr/",
+        "http://www.launchable.kr",
+        "https://www.launchable.kr/",
+        "https://launchable-plhl6vj4k-jinyoung-bang.vercel.app/"
+    ]}})
+elif env == "development":
+    CORS(app, resources={r'*': {'origins': '*'}})
+else:
+    CORS(app, resources={r'*': {'origins': '*'}})
+
 initialize_firebase_admin()
 register_blueprints(app)
 

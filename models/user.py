@@ -6,7 +6,7 @@ class User(object):
         self.created_at = created_at
         self.updated_at = updated_at
         self.is_valid = is_valid
-        self.profile = vars(UserProfile(id, "", "", created_at, updated_at, "", {}))
+        self.profile = vars(UserProfile(id, "", created_at, updated_at, "", {}))
 
     def __repr__(self):
         return(
