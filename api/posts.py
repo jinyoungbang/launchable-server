@@ -18,7 +18,7 @@ def create_post():
 
         data = request.get_json()
         post = Post(post_id, data["title"], data["body"],
-                    data["user"], SERVER_TIMESTAMP,  SERVER_TIMESTAMP)
+                    data["user"], data["user_id"], SERVER_TIMESTAMP,  SERVER_TIMESTAMP)
         post_doc.set(vars(post))
         res_obj = {
             "success": True
@@ -80,14 +80,17 @@ def get_specific_post(id):
         }
         return make_response(jsonify(res_obj), 400)
 
+
 @posts.route("/api/posts/trending", methods=["GET"])
 def get_trending_posts():
     pass
 
+
 @posts.route("/api/posts/recent", methods=["GET"])
 def get_recent_posts():
     try:
-        docs = db.collection(u'posts').order_by(u"created_at", direction=firestore.Query.DESCENDING)
+        docs = db.collection(u'posts').order_by(
+            u"created_at", direction=firestore.Query.DESCENDING)
         docs = docs.stream()
         docs_to_send = [doc.to_dict() for doc in docs]
 
@@ -103,7 +106,7 @@ def get_recent_posts():
             "msg": e
         }
         return make_response(jsonify(res_obj), 400)
-    # db.collection("calculations").orderBy("timestamp", "desc").limit(1).get()
+
 
 @posts.route("/api/posts/<id>", methods=["DELETE"])
 def delete_specific_post(id):
@@ -121,6 +124,11 @@ def delete_specific_post(id):
             "msg": "Post not found."
         }
     return make_response(jsonify(res_obj), 404)
+
+
+@posts.route("/api/posts/<id>", methods=["PATCH"])
+def edit_specific_post(id):
+    pass
 
 
 @posts.route("/api/posts/like/<id>", methods=["POST"])
@@ -278,7 +286,6 @@ def update_comment(post_id, comment_id):
                 comments[i]["body"] = data["body"]
                 comments[i]["updated_at"] = datetime.datetime.now()
                 break
-        
 
         doc_ref.update({
             u"comments": comments,
@@ -295,7 +302,6 @@ def update_comment(post_id, comment_id):
             "msg": e
         }
         return make_response(jsonify(res_obj), 400)
-
 
 
 @posts.route("/api/posts/<post_id>/comments/<comment_id>", methods=["DELETE"])

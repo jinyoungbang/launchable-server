@@ -1,10 +1,11 @@
 
 class Post(object):
-    def __init__(self, id, title, body, user, created_at, updated_at):
+    def __init__(self, id, title, body, user, user_id, created_at, updated_at):
         self.id = id
         self.title = title
         self.body = body
         self.user = user
+        self.user_id = user_id
         self.likes = []
         self.likes_count = 0
         self.views = 0

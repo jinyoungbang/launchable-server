@@ -5,6 +5,8 @@ from models.user import User
 from service.common import return_exception
 import json
 
+from service.auth import delete_user_from_auth_module
+
 auth = Blueprint("auth", __name__)  # initialize blueprint
 db = firestore.client()
 
@@ -34,6 +36,7 @@ def check_uid():
         }
         return make_response(jsonify(res_obj), 400)
 
+
 @auth.route("/api/auth/check-username", methods=["POST"])
 # Checks if a user's UID exists in Firestore
 def check_username():
@@ -60,7 +63,6 @@ def check_username():
         return make_response(jsonify(res_obj), 400)
 
 
-
 @auth.route("/api/auth/create", methods=["POST"])
 def create_user():
     try:
@@ -81,3 +83,76 @@ def create_user():
             "msg": e
         }
         return make_response(jsonify(res_obj), 400)
+
+
+@auth.route("/api/auth/<id>", methods=["GET"])
+def check_user_exists(id):
+    try:
+        users_ref = db.collection(u'users')
+        doc = users_ref.document(id).get()
+        if doc.exists:
+            res_obj = {
+                "userExists": True,
+            }
+            return make_response(jsonify(res_obj), 200)
+        else:
+            res_obj = {
+                "userExists": False
+            }
+            return make_response(jsonify(res_obj), 200)
+
+    except Exception as e:
+        res_obj = {
+            "msg": e
+        }
+        return make_response(jsonify(res_obj), 400)
+
+
+@auth.route("/api/auth/<id>", methods=["DELETE"])
+def delete_user(id):
+    try:
+        doc_ref = db.collection(u'users').document(id)
+        post_doc = doc_ref.get()
+
+        if post_doc.exists:
+            print("users doc found")
+            doc_ref.delete()
+            delete_user_from_auth_module(id)
+            print("deleted with auth")
+
+        else:
+            res_obj = {
+                "success": False,
+                "msg": "User not found."
+            }
+
+            return make_response(jsonify(res_obj), 404)
+
+        collection_ref = db.collection(u"posts")
+        docs = collection_ref.where(u"user_id", "==", id).get()
+        batch = db.batch()
+
+        print("creating batch")
+        num = 0
+
+        for doc in docs:
+            if num % 500 == 499:
+                batch.commit()
+                batch = db.batch()
+                num = 0
+            batch.delete(doc.reference)
+            num += 1
+            print("deleting " + str(num))
+
+        batch.commit()
+
+        res_obj = {
+            "success": True,
+        }
+        return make_response(jsonify(res_obj), 200)
+
+    except Exception as e:
+        res_obj = {
+            "success": False,
+        }
+        return make_response(jsonify(res_obj), 404)
