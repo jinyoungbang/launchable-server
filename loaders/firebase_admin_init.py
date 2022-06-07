@@ -17,6 +17,6 @@ def initialize_firebase_admin():
         "auth_uri": os.environ.get('FIREBASE_AUTH_URI'),
         "token_uri": os.environ.get('FIREBASE_TOKEN_URI'),
         "auth_provider_x509_cert_url": os.environ.get('FIREBASE_AUTH_PROVIDER_X509_CERT_URL'),
-        "client_x509_cert_url": os.environ.get('FIREBASE_CLIENT_X509_CERT_URL'),
+        "client_x509_cert_url": os.environ.get('FIREBASE_CLIENT_X509_CERT_URL')
     })
     firebase_admin.initialize_app(cred)

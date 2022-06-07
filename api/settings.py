@@ -1,10 +1,11 @@
 import profile
 from flask import Blueprint, jsonify, request, make_response
-from firebase_admin import firestore, exceptions
+from firebase_admin import firestore, storage, exceptions
 from firebase_admin.firestore import SERVER_TIMESTAMP
 
 settings = Blueprint("settings", __name__)  # initialize blueprint
 db = firestore.client()
+# bucket = storage.bucket()
 
 
 @settings.route("/api/settings", methods=["PATCH"])
@@ -13,8 +14,8 @@ def edit_user_profile():
     try:
         data = request.get_json()
         users_ref = db.collection(u'users')
+
         user_id = data["id"]
-        user_data = data["userData"]
         profile_data = data["userData"]["profile"]
 
         # # Ensures that inner object values do not get wiped
@@ -27,7 +28,33 @@ def edit_user_profile():
         if "about" not in profile_data:
             profile_data["about"] = ""
 
-        users_ref.document(user_id).update(user_data)
+        users_ref.document(user_id).update({
+            "profile.about": profile_data["about"],
+            "profile.display_name": profile_data["display_name"],
+            "profile.profile_links": profile_data["profile_links"]
+        })
+        res_obj = {
+            "msg": "Success",
+        }
+        return make_response(jsonify(res_obj), 200)
+
+    except:
+        res_obj = {
+            "msg": "Error. Please check Firebase console."
+        }
+        return make_response(jsonify(res_obj), 400)
+
+
+@settings.route("/api/settings/avatar", methods=["PATCH"])
+def edit_avatar_url():
+    try:
+        data = request.get_json()
+        users_ref = db.collection(u'users')
+        user_id = data["id"]
+
+        users_ref.document(user_id).update({
+            "profile.avatar_url": data["avatar_url"]
+        })
         res_obj = {
             "msg": "Success",
         }
