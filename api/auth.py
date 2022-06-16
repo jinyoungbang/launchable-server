@@ -156,3 +156,37 @@ def delete_user(id):
             "success": False,
         }
         return make_response(jsonify(res_obj), 404)
+
+
+@auth.route("/api/auth/username/<username>", methods=["GET"])
+def get_user_by_username(username):
+    try:
+        users_ref = db.collection(u"users")
+        posts_ref = db.collection(u"posts")
+
+        user_query = users_ref.where(u"username", u"==", username).get()
+        posts_query = posts_ref.where(u"user", u"==", username).stream()
+
+        if len(user_query) == 0:
+            res_obj = {
+                "msg": "No users exist."
+            }
+            return make_response(jsonify(res_obj), 400)
+
+        print("hit")
+        user_data = user_query[0].to_dict()
+        posts_data = [post.to_dict() for post in posts_query]
+        posts_data = sorted(posts_data, key=lambda x: x["created_at"], reverse=True)
+
+        res_obj = {
+            "user_data": user_data,
+            "posts_data": posts_data
+        }
+
+        return make_response(jsonify(res_obj), 200)
+
+    except Exception as e:
+        res_obj = {
+            "msg": e
+        }
+        return make_response(jsonify(res_obj), 400)

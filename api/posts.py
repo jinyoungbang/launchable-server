@@ -128,7 +128,32 @@ def delete_specific_post(id):
 
 @posts.route("/api/posts/<id>", methods=["PATCH"])
 def edit_specific_post(id):
-    pass
+    try:
+        doc_ref = db.collection(u'posts').document(id)
+        doc = doc_ref.get().to_dict()
+        data = request.get_json()
+
+        if doc["user_id"] != data["user_id"]:
+            res_obj = {
+                "msg": "Unauthorized."
+            }
+            return make_response(jsonify(res_obj), 401)
+
+        doc_ref.update({
+            "title": data["title"],
+            "body": data["body"],
+            "updated_at": SERVER_TIMESTAMP
+        })
+        res_obj = {
+            "msg": "Success",
+        }
+        return make_response(jsonify(res_obj), 200)
+
+    except:
+        res_obj = {
+            "msg": "Error. Please check Firebase console."
+        }
+        return make_response(jsonify(res_obj), 400)
 
 
 @posts.route("/api/posts/like/<id>", methods=["POST"])
