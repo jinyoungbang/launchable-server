@@ -14,6 +14,8 @@ if env == "production":
     CORS(app, resources={r'*': {'origins': [
         "http://launchable.kr/",
         "https://launchable.kr/",
+        "http://launchable.kr/*",
+        "https://launchable.kr/*"
         "http://www.launchable.kr",
         "https://www.launchable.kr/",
         "https://launchable-plhl6vj4k-jinyoung-bang.vercel.app/"
