@@ -4,6 +4,7 @@ from firebase_admin.firestore import SERVER_TIMESTAMP
 from models.post import Post, Comment
 from uuid import uuid4
 import datetime
+import logging
 
 posts = Blueprint("posts", __name__)  # initialize blueprint
 db = firestore.client()
@@ -83,7 +84,43 @@ def get_specific_post(id):
 
 @posts.route("/api/posts/trending", methods=["GET"])
 def get_trending_posts():
-    pass
+    try:
+        logging.info("Fetching post scores.")
+        docs = db.collection(u'posts_score').order_by(
+            u"score", direction=firestore.Query.DESCENDING)
+        docs = docs.stream()
+
+        id_score_dict = {}
+        scores_with_id = [doc.to_dict() for doc in docs]
+        for score_doc in scores_with_id:
+            id_score_dict[score_doc["id"]] = score_doc["score"]
+        
+        logging.info("Fetching posts and sorting by scores.")
+        docs = db.collection(u'posts')
+        docs = docs.stream()
+        docs = [doc.to_dict() for doc in docs]
+        for doc in docs:
+            if doc["id"] not in id_score_dict:
+                doc["score"] = 0
+            else:
+                doc["score"] = id_score_dict[doc["id"]]
+        
+        trending_posts = sorted(docs, key=lambda x : x["score"], reverse=True)
+        for post in trending_posts:
+            post.pop("score", None)
+
+        res_obj = {
+            "success": True,
+            "data": trending_posts
+        }
+        return make_response(jsonify(res_obj), 200)
+
+    except Exception as e:
+        res_obj = {
+            "success": False,
+            "msg": e
+        }
+        return make_response(jsonify(res_obj), 400)
 
 
 @posts.route("/api/posts/recent", methods=["GET"])
@@ -144,7 +181,7 @@ def edit_specific_post(id):
             "body": data["body"],
             "updated_at": SERVER_TIMESTAMP
         })
-        
+
         res_obj = {
             "msg": "Success",
         }
@@ -193,6 +230,27 @@ def like_post(id):
         u"likes": post_doc_data["likes"] + [user_id],
         u"likes_count": likes_count
     })
+
+    # Checking if post has been scored
+    doc_ref = db.collection(u'posts_score').document(id)
+    post_score_doc = doc_ref.get()
+
+    score = post_doc_data["comments_count"] + likes_count * 5
+
+    # If post hasn't been scored, score with current stats
+    if not post_score_doc.exists:
+        score_doc = {
+            u"id": id,
+            u"score": score,
+            u"last_updated": SERVER_TIMESTAMP
+        }
+        db.collection(u'posts_score').document(id).set(score_doc)
+    # Else, update score with new value
+    else:
+        doc_ref.update({
+            u"score": score,
+            u"last_updated": SERVER_TIMESTAMP
+        })
 
     res_obj = {
         "success": True,
@@ -247,6 +305,27 @@ def unlike_post(id):
         u"likes_count": likes_count
     })
 
+    # Checking if post has been scored
+    doc_ref = db.collection(u'posts_score').document(id)
+    post_score_doc = doc_ref.get()
+
+    score = post_doc_data["comments_count"] + likes_count * 5
+
+    # If post hasn't been scored, score with current stats
+    if not post_score_doc.exists:
+        score_doc = {
+            u"id": id,
+            u"score": score,
+            u"last_updated": SERVER_TIMESTAMP
+        }
+        db.collection(u'posts_score').document(id).set(score_doc)
+    # Else, update score with new value
+    else:
+        doc_ref.update({
+            u"score": score,
+            u"last_updated": SERVER_TIMESTAMP
+        })
+
     res_obj = {
         "success": True,
         "postId": id,
@@ -277,6 +356,27 @@ def create_comment(id):
             u"comments": firestore.ArrayUnion([vars(comment)]),
             u"comments_count": post_doc_data["comments_count"] + 1
         })
+
+        # Checking if post has been scored
+        doc_ref = db.collection(u'posts_score').document(id)
+        post_score_doc = doc_ref.get()
+
+        score = (post_doc_data["comments_count"] + 1) + (post_doc_data["likes_count"] * 5)
+
+        # If post hasn't been scored, score with current stats
+        if not post_score_doc.exists:
+            score_doc = {
+                u"id": id,
+                u"score": score,
+                u"last_updated": SERVER_TIMESTAMP
+            }
+            db.collection(u'posts_score').document(id).set(score_doc)
+        # Else, update score with new value
+        else:
+            doc_ref.update({
+                u"score": score,
+                u"last_updated": SERVER_TIMESTAMP
+            })
 
         res_obj = {
             "success": True
@@ -350,6 +450,26 @@ def delete_comment(post_id, comment_id):
             u"comments": comments,
             u"comments_count": len(comments)
         })
+
+        # Checking if post has been scored
+        doc_ref = db.collection(u'posts_score').document(post_id)
+        post_score_doc = doc_ref.get()
+        score = len(comments) + (post_doc_data["likes_count"] * 5)
+
+        # If post hasn't been scored, score with current stats
+        if not post_score_doc.exists:
+            score_doc = {
+                u"id": id,
+                u"score": score,
+                u"last_updated": SERVER_TIMESTAMP
+            }
+            db.collection(u'posts_score').document(id).set(score_doc)
+        # Else, update score with new value
+        else:
+            doc_ref.update({
+                u"score": score,
+                u"last_updated": SERVER_TIMESTAMP
+            })
 
         res_obj = {
             "success": True
