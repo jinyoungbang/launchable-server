@@ -4,7 +4,6 @@ from firebase_admin.firestore import SERVER_TIMESTAMP
 from models.post import Post, Comment
 from uuid import uuid4
 import datetime
-import logging
 
 posts = Blueprint("posts", __name__)  # initialize blueprint
 db = firestore.client()
@@ -85,7 +84,6 @@ def get_specific_post(id):
 @posts.route("/api/posts/trending", methods=["GET"])
 def get_trending_posts():
     try:
-        logging.info("Fetching post scores.")
         docs = db.collection(u'posts_score').order_by(
             u"score", direction=firestore.Query.DESCENDING)
         docs = docs.stream()
@@ -95,7 +93,6 @@ def get_trending_posts():
         for score_doc in scores_with_id:
             id_score_dict[score_doc["id"]] = score_doc["score"]
         
-        logging.info("Fetching posts and sorting by scores.")
         docs = db.collection(u'posts')
         docs = docs.stream()
         docs = [doc.to_dict() for doc in docs]
