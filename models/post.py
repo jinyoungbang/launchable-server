@@ -17,7 +17,7 @@ class Post(object):
 
 
 class Comment(object):
-    def __init__(self, id, body, user_id, username, level, created_at, updated_at):
+    def __init__(self, id, body, user_id, username, level, created_at, updated_at, parents=[]):
         self.id = id
         self.body = body
         self.user_id = user_id
@@ -25,6 +25,7 @@ class Comment(object):
         self.level = level
         self.created_at = created_at
         self.updated_at = updated_at
+        self.parents = parents
         self.likes = 0
         self.comments = []
         self.comments_count = 0

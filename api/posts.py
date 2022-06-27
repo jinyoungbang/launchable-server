@@ -92,7 +92,7 @@ def get_trending_posts():
         scores_with_id = [doc.to_dict() for doc in docs]
         for score_doc in scores_with_id:
             id_score_dict[score_doc["id"]] = score_doc["score"]
-        
+
         docs = db.collection(u'posts')
         docs = docs.stream()
         docs = [doc.to_dict() for doc in docs]
@@ -101,8 +101,8 @@ def get_trending_posts():
                 doc["score"] = 0
             else:
                 doc["score"] = id_score_dict[doc["id"]]
-        
-        trending_posts = sorted(docs, key=lambda x : x["score"], reverse=True)
+
+        trending_posts = sorted(docs, key=lambda x: x["score"], reverse=True)
         for post in trending_posts:
             post.pop("score", None)
 
@@ -358,7 +358,73 @@ def create_comment(id):
         doc_ref = db.collection(u'posts_score').document(id)
         post_score_doc = doc_ref.get()
 
-        score = (post_doc_data["comments_count"] + 1) + (post_doc_data["likes_count"] * 5)
+        score = (post_doc_data["comments_count"] + 1) + \
+            (post_doc_data["likes_count"] * 5)
+
+        # If post hasn't been scored, score with current stats
+        if not post_score_doc.exists:
+            score_doc = {
+                u"id": id,
+                u"score": score,
+                u"last_updated": SERVER_TIMESTAMP
+            }
+            db.collection(u'posts_score').document(id).set(score_doc)
+        # Else, update score with new value
+        else:
+            doc_ref.update({
+                u"score": score,
+                u"last_updated": SERVER_TIMESTAMP
+            })
+
+        res_obj = {
+            "success": True
+        }
+        return make_response(jsonify(res_obj), 201)
+
+    except Exception as e:
+        res_obj = {
+            "success": False,
+            "msg": e
+        }
+        return make_response(jsonify(res_obj), 400)
+
+
+@posts.route("/api/posts/<id>/reply", methods=["POST"])
+def reply_to_comment(id):
+    from service.posts import find_and_push_comment
+
+    try:
+        doc_ref = db.collection(u'posts').document(id)
+        post_doc = doc_ref.get()
+        if not post_doc.exists:
+            res_obj = {
+                "success": False,
+                "msg": "Post not found."
+            }
+            return make_response(jsonify(res_obj), 404)
+
+        post_doc_data = post_doc.to_dict()
+
+        # body, userId, username, level + 1, parentId
+        data = request.get_json()
+
+        comment = Comment(
+            str(uuid4()), data["body"], data["userId"], data["username"], data["level"], datetime.datetime.now(),  datetime.datetime.now(), data["parents"])
+
+        comments_data = post_doc_data["comments"]
+        find_and_push_comment(comments_data, data["parents"], vars(comment))
+
+        doc_ref.update({
+            u"comments": comments_data,
+            u"comments_count": post_doc_data["comments_count"] + 1
+        })
+
+        # Checking if post has been scored
+        doc_ref = db.collection(u'posts_score').document(id)
+        post_score_doc = doc_ref.get()
+
+        score = (post_doc_data["comments_count"] + 1) + \
+            (post_doc_data["likes_count"] * 5)
 
         # If post hasn't been scored, score with current stats
         if not post_score_doc.exists:
@@ -390,6 +456,8 @@ def create_comment(id):
 
 @posts.route("/api/posts/<post_id>/comments/<comment_id>", methods=["PATCH"])
 def update_comment(post_id, comment_id):
+    from service.posts import find_and_update_comment
+
     try:
         doc_ref = db.collection(u'posts').document(post_id)
         post_doc = doc_ref.get()
@@ -404,11 +472,8 @@ def update_comment(post_id, comment_id):
 
         post_doc_data = post_doc.to_dict()
         comments = post_doc_data["comments"]
-        for i in range(len(comments)):
-            if comments[i]["id"] == comment_id:
-                comments[i]["body"] = data["body"]
-                comments[i]["updated_at"] = datetime.datetime.now()
-                break
+
+        find_and_update_comment(comments, comment_id, data["parents"], data["body"])
 
         doc_ref.update({
             u"comments": comments,
@@ -429,6 +494,8 @@ def update_comment(post_id, comment_id):
 
 @posts.route("/api/posts/<post_id>/comments/<comment_id>", methods=["DELETE"])
 def delete_comment(post_id, comment_id):
+    from service.posts import find_and_delete_comment
+
     try:
         doc_ref = db.collection(u'posts').document(post_id)
         post_doc = doc_ref.get()
@@ -439,19 +506,23 @@ def delete_comment(post_id, comment_id):
             }
             return make_response(jsonify(res_obj), 404)
 
+        data = request.get_json()
+
         post_doc_data = post_doc.to_dict()
-        comments = [comment for comment in post_doc_data["comments"]
-                    if not (comment['id'] == comment_id)]
+        comments = post_doc_data["comments"]
+        find_and_delete_comment(comments, comment_id, data["parents"])
+        # comments = [comment for comment in post_doc_data["comments"]
+        #             if not (comment['id'] == comment_id)]
 
         doc_ref.update({
             u"comments": comments,
-            u"comments_count": len(comments)
+            u"comments_count": post_doc_data["comments_count"] - 1
         })
 
         # Checking if post has been scored
         doc_ref = db.collection(u'posts_score').document(post_id)
         post_score_doc = doc_ref.get()
-        score = len(comments) + (post_doc_data["likes_count"] * 5)
+        score = (post_doc_data["comments_count"] - 1) + (post_doc_data["likes_count"] * 5)
 
         # If post hasn't been scored, score with current stats
         if not post_score_doc.exists:
